@@ -1,34 +1,25 @@
 # Migration Reconciliation Checker
 
-## Docker Compose setup
+Checks source and target databases after a migration and reports missing,
+duplicate, or unexpectedly empty data.
 
-Docker Compose starts two PostgreSQL 16 databases:
+## Setup
 
-- `source_db` creates a database named `source`, available on `localhost:5433`.
-- `target_db` creates a database named `target`, available on `localhost:5434`.
-
-Both databases use the same username and password. Before starting them, create
-a `.env` file in the project directory with the values referenced in
-`docker-compose.yml`:
-
-```env
-DB_USER=your_database_username
-DB_PASSWORD=your_database_password
-```
-
-Keep your real credentials in `.env`; it is excluded from Git.
-
-Start the databases with:
-
-```bash
-docker compose up -d
-```
-
-Stop them with:
-
-```bash
-docker compose down
-```
+1. Create a `.env` file in the project directory and set your database
+   credentials:
+   ```env
+   DB_USER=your_database_username
+   DB_PASSWORD=your_database_password
+   ```
+   Keep your real credentials in `.env`; it is excluded from Git.
+2. Install Docker, `psql` and `pg_isready` (provided by `postgresql-client`),
+   `curl`, and `gzip`.
+3. Run the setup script:
+   ```bash
+   ./scripts/db_setup.sh
+   ```
+   This starts the source and target PostgreSQL databases, downloads the IMDb
+   movie and rating data, and loads the data into both databases.
 
 ## Connecting with `psql`
 
