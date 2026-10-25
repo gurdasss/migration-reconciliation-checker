@@ -15,40 +15,22 @@ db_pass = os.environ.get("DB_PASSWORD")
 if not db_user or not db_pass:  # give informative error message
     raise KeyError("Either DB_USER or DB_PASSWORD is not in your .env file.")
 
+
 # 2. open a connection to source (port 5433) and one to target (port 5434)
-# A connection string formatted as a standard URI
-
-# Define connection parameters
-db_src_params = {
-    "dbname": SOURCE_DB,
-    "user": db_user,
-    "password": db_pass,
-    "host": "localhost",
-    "port": SOURCE_PORT,
-}
-
-db_tar_params = {
-    "dbname": TARGET_DB,
-    "user": db_user,
-    "password": db_pass,
-    "host": "localhost",
-    "port": TARGET_PORT,
-}
+def get_params(port, dbname):
+    # Define connection parameters
+    # read env vars, validate them, return the dict for psycopg.connect(**params)
+    return {
+        "dbname": dbname,
+        "user": db_user,
+        "password": db_pass,
+        "host": "localhost",
+        "port": port,
+    }
 
 
-try:
-    with psycopg.connect(**db_src_params) as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT version();")
-            db_version = cur.fetchone()
-            print(f"Connected to PostgreSQL! Version: {db_version}")
-            # automatically close the cursor object
-        # commit changes to the database, if something goes haywire rollback recent change
-
-    # automatically close the connection object
-
-except psycopg.OperationalError as e:
-    print(f"Database connection failed: {e}")
+db_src_params = get_params(SOURCE_PORT, SOURCE_DB)
+db_tar_params = get_params(TARGET_PORT, TARGET_DB)
 
 
 # 3. empty the target tables (ratings first, then movies. Why that order?)
@@ -57,3 +39,28 @@ except psycopg.OperationalError as e:
 #       - write that batch to target
 #       - repeat until no rows are left
 # 5. commit, and print how many rows were copied per table
+
+
+def main():
+    try:
+        with psycopg.connect(**db_src_params) as src_conn, psycopg.connect(
+            **db_tar_params
+        ) as tar_conn:
+            with tar_conn.cursor() as tar_cur:
+                # first truncate all the tables from target db and
+                # because ratings is referencing movies table
+                # we would truncate both in a single op
+                tar_cur.execute("TRUNCATE movies, ratings;")
+            # automatically close the cursor object
+
+            with src_conn.cursor() as src_cur:
+                pass
+        # commit changes to the database, if something goes haywire rollback recent change
+
+    # automatically close the connection object
+    except psycopg.OperationalError as e:
+        print(f"Database connection failed: {e}")
+
+
+if __name__ == "__main__":
+    main()
