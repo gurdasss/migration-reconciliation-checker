@@ -2,25 +2,17 @@ import os  # for fetching .env vars from os.environ
 import psycopg  # for connecting to PostgreSQL
 from dotenv import load_dotenv  # for loading .env vars
 
+from reconciler.tables import TABLES
+
 SOURCE_DB = "source"
 SOURCE_PORT = 5433
 TARGET_DB = "target"
 TARGET_PORT = 5434
 BATCH_SIZE = 10_000
 
-MOVIES_COLUMNS = [
-    "tconst",
-    "title_type",
-    "primary_title",
-    "original_title",
-    "is_adult",
-    "start_year",
-    "end_year",
-    "runtime_minutes",
-    "genres",
-]
+MOVIES_COLUMNS = TABLES["movies"]["columns"]
 
-RATINGS_COLUMNS = ["tconst", "average_rating", "num_votes"]
+RATINGS_COLUMNS = TABLES["ratings"]["columns"]
 
 # 1. load DB_USER and DB_PASSWORD from .env
 load_dotenv()  # reads .env file
