@@ -14,7 +14,11 @@ duplicate, or unexpectedly empty data.
    Keep your real credentials in `.env`; it is excluded from Git.
 2. Install Docker, `psql` and `pg_isready` (provided by `postgresql-client`),
    `curl`, and `gzip`.
-3. Run the setup script:
+3. Install the project:
+   ```bash
+   pip install -e .
+   ```
+4. Run the setup script:
    ```bash
    ./scripts/db_setup.sh
    ```
