@@ -1,8 +1,7 @@
 from reconciler.tables import TABLES
 from reconciler.db import get_params
 from reconciler.constants import *
-from psycopg import sql, connect, OperationalError
-
+from psycopg import sql, connect, OperationalError, Connection
 
 def check_row_counts(src_conn, tgt_conn):
     for table in TABLES:
@@ -86,14 +85,63 @@ def check_nulls(src_conn, tgt_conn):
                 )
 
 
+def _read_fingerprints(conn: Connection, table, key, columns):
+    with conn.cursor(name="server_cur") as cur:
+        key_id = sql.Identifier(key)
+        cols = sql.SQL(", ").join(sql.Identifier(c) for c in columns)
+        expression = sql.SQL("{}, md5(ROW({})::text)").format(key_id, cols)
+        query = sql.SQL("SELECT {} FROM {}").format(expression, sql.Identifier(table))
+
+        keys_and_hashs = {}
+
+        cur.execute(query)
+
+        while True:
+            result = cur.fetchmany(BATCH_SIZE)
+
+            if not result:
+                break
+
+            # each row is represented as a tuple
+            # so we're fetching only two items so,
+            # tuple unpacking
+            for k, h in result:
+                keys_and_hashs[k] = h
+
+        return keys_and_hashs
+
+
+def check_changed(src_conn, tgt_conn):
+
+    for table in TABLES:
+        src_fp = _read_fingerprints(
+            src_conn, table, TABLES[table]["key"], TABLES[table]["columns"]
+        )
+        tgt_fp = _read_fingerprints(
+            tgt_conn, table, TABLES[table]["key"], TABLES[table]["columns"]
+        )
+
+        changed_keys = [
+            k for k in src_fp.keys() & tgt_fp.keys() if src_fp[k] != tgt_fp[k]
+        ]
+
+        changed_keys.sort()
+
+        print(f"FROM {table}:")
+        print("\tfirst five sorted keys:", changed_keys[:5])
+        print("\tlength of changed keys", len(changed_keys))
+
+
 def main():
     try:
         with connect(**get_params(SOURCE_PORT, SOURCE_DB)) as src_conn, connect(
             **get_params(TARGET_PORT, TARGET_DB)
         ) as tgt_conn:
-            # check_row_counts(src_conn, tgt_conn)
-            # check_keys(src_conn, tgt_conn)
+            check_row_counts(src_conn, tgt_conn)
+            check_keys(src_conn, tgt_conn)
             check_nulls(src_conn, tgt_conn)
+            check_changed(src_conn, tgt_conn)
+
     except OperationalError as e:
         print(f"Database connection failed: {e}")
 
