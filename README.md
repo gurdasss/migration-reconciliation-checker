@@ -49,3 +49,10 @@ port, username, and database name:
 ```bash
 psql -h <host> -p <port> -U <username> -d <database>
 ```
+
+## Known limitation
+
+Hash comparisons assume both databases print values in the same way. This holds
+for the current setup because the corresponding column types are identical. If
+a migration changes column types, normalize the values before hashing so
+equivalent data has the same representation on both sides.
