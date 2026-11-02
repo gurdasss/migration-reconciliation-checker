@@ -4,6 +4,7 @@ from reconciler.constants import *
 from psycopg import sql, connect, OperationalError, Connection
 
 def check_row_counts(src_conn, tgt_conn):
+    print("\n=== Row count check ===")
     for table in TABLES:
         with src_conn.cursor() as src_cur, tgt_conn.cursor() as tgt_cur:
             src_cur.execute(f"SELECT COUNT(*) FROM {table}")
@@ -12,11 +13,13 @@ def check_row_counts(src_conn, tgt_conn):
             tgt_result = tgt_cur.fetchone()[0]
 
             print(
-                f"{table}\tsource={src_result}\ttgtget={tgt_result}\t{"OK" if src_result==tgt_result else "BAD"}"
+                f"  {table}: source={src_result}, target={tgt_result} "
+                f"[{"PASS" if src_result == tgt_result else "FAIL"}]"
             )
 
 
 def check_keys(src_conn, tgt_conn):
+    print("\n=== Key reconciliation check ===")
     for table in TABLES:
         with src_conn.cursor(name="src_stream_cursor") as src_cur, tgt_conn.cursor(
             name="tgt_stream_cursor"
@@ -43,12 +46,14 @@ def check_keys(src_conn, tgt_conn):
             extra_keys_count = len(extra_keys)
 
             print(
-                f"{table}\tmissing_keys_count={missing_keys_count} | extra_keys_count={extra_keys_count}\t{"OK" if missing_keys_count == 0 and extra_keys_count == 0 else "BAD"}"
+                f"  {table}: missing keys={missing_keys_count}, "
+                f"extra keys={extra_keys_count} "
+                f"[{"PASS" if missing_keys_count == 0 and extra_keys_count == 0 else "FAIL"}]"
             )
             if missing_keys_count > 0:
-                print(f"FROM {table}:missing_keys:{missing_keys}")
+                print(f"    Missing from target (keys): {missing_keys}")
             if extra_keys_count > 0:
-                print(f"FROM {table}:extra_keys:{missing_keys}")
+                print(f"    Extra in target (keys): {extra_keys}")
 
 
 def count_nulls(cur, table, columns):
@@ -66,21 +71,25 @@ def count_nulls(cur, table, columns):
 
 
 def check_nulls(src_conn, tgt_conn):
+    print("\n=== Null-count check ===")
     for table in TABLES:
         with src_conn.cursor() as src_cur, tgt_conn.cursor() as tgt_cur:
             src_result = count_nulls(src_cur, table, TABLES[table]["columns"])
             tgt_result = count_nulls(tgt_cur, table, TABLES[table]["columns"])
-            print(f"Result set from {table}:")
+            mismatched_columns = []
 
             for column in TABLES[table]["columns"]:
-                if (
-                    src_result[column] == 0
-                    and tgt_result[column] == 0
-                    or (src_result[column] == tgt_result[column])
-                ):
-                    continue
+                if src_result[column] != tgt_result[column]:
+                    mismatched_columns.append(column)
+
+            if not mismatched_columns:
+                print(f"  {table}: null counts match for all columns [PASS]")
+                continue
+
+            print(f"  {table}: null counts differ [FAIL]")
+            for column in mismatched_columns:
                 print(
-                    f"  {column}: source={src_result[column]}, "
+                    f"    {column}: source={src_result[column]}, "
                     f"target={tgt_result[column]}"
                 )
 
@@ -112,7 +121,7 @@ def _read_fingerprints(conn: Connection, table, key, columns):
 
 
 def check_changed(src_conn, tgt_conn):
-
+    print("\n=== Changed-row check (row fingerprints) ===")
     for table in TABLES:
         src_fp = _read_fingerprints(
             src_conn, table, TABLES[table]["key"], TABLES[table]["columns"]
@@ -127,9 +136,10 @@ def check_changed(src_conn, tgt_conn):
 
         changed_keys.sort()
 
-        print(f"FROM {table}:")
-        print("\tfirst five sorted keys:", changed_keys[:5])
-        print("\tlength of changed keys", len(changed_keys))
+        result = "PASS" if not changed_keys else "FAIL"
+        print(f"  {table}: changed rows={len(changed_keys)} [{result}]")
+        if changed_keys:
+            print(f"    First five changed keys: {changed_keys[:5]}")
 
 
 def main():
