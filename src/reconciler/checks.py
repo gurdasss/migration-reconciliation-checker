@@ -1,7 +1,14 @@
-from reconciler.tables import TABLES
+from psycopg import Connection, OperationalError, connect, sql
+
+from reconciler.constants import (
+    BATCH_SIZE,
+    SOURCE_DB,
+    SOURCE_PORT,
+    TARGET_DB,
+    TARGET_PORT,
+)
 from reconciler.db import get_params
-from reconciler.constants import *
-from psycopg import sql, connect, OperationalError, Connection
+from reconciler.tables import TABLES
 
 
 def check_row_counts(src_conn, tgt_conn):
