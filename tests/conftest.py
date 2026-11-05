@@ -16,7 +16,25 @@ ANSWER_KEY = PROJECT_ROOT / "answer_key.json"
 
 
 @pytest.fixture(scope="session")
-def answer_key():
+def databases_available():
+    """Skip the suite with a clear reason when the containers are not up.
+
+    Without this, every test fails with a raw connection error instead. Change
+    pytest.skip to pytest.fail if you would rather a CI run go red.
+    """
+    for port, dbname in ((SOURCE_PORT, SOURCE_DB), (TARGET_PORT, TARGET_DB)):
+        try:
+            with psycopg.connect(**get_params(port, dbname), connect_timeout=5):
+                pass
+        except psycopg.OperationalError as e:
+            pytest.skip(
+                f"cannot reach {dbname} on port {port} "
+                f"(try: docker compose up -d) -- {e}",
+            )
+
+
+@pytest.fixture(scope="session")
+def answer_key(databases_available):
     """Run the clean migration + fault injection once, return the answer key.
 
     error_migrate.py writes answer_key.json relative to its working directory,
