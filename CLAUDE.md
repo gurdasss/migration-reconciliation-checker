@@ -6,7 +6,7 @@ A tool that answers one question: after copying data from an old database (`sour
 
 1. `source` is the old system, loaded with IMDb data. `target` is the new system and starts with empty tables.
 2. `clean_migrate.py` copies `source` to `target` correctly.
-3. `break_target.py` runs the clean migration, then corrupts `target` in known ways (missing rows, fake extra rows, blanked values, changed values) and writes every touched key to `answer_key.json`.
+3. `error_migrate.py` runs the clean migration, then corrupts `target` in known ways (missing rows, fake extra rows, blanked values, changed values) and writes every touched key to `answer_key.json`.
 4. The checker compares the two databases. Its findings must match `answer_key.json`.
 
 ## Development environment
@@ -74,7 +74,7 @@ docker compose down -v                     # stop and delete containers AND data
 
 ./scripts/db_setup.sh                      # rebuild: load source, empty target tables
 python scripts/clean_migrate.py            # correct copy source -> target
-python scripts/break_target.py             # clean migration, then inject known faults + write answer_key.json
+python scripts/error_migrate.py             # clean migration, then inject known faults + write answer_key.json
 python src/reconciler/checks.py            # run the checks (replace with scripts/check.py when it exists)
 pytest                                     # run tests
 ```
@@ -82,7 +82,7 @@ pytest                                     # run tests
 ## Layout
 
 ```
-scripts/        db_setup.sh, clean_migrate.py, break_target.py
+scripts/        db_setup.sh, clean_migrate.py, error_migrate.py
 sql/            schema.sql  (DROP IF EXISTS + CREATE TABLE, so reruns are safe)
 src/reconciler/ the importable package: tables.py (TABLES), checks.py, shared helpers
 tests/
@@ -95,7 +95,7 @@ data/           downloaded IMDb files (gitignored)
 - **Name columns explicitly** in SELECT and INSERT. Never rely on `SELECT *` or column order.
 - **Build SQL with `psycopg.sql`** (`sql.SQL`, `sql.Identifier`, `sql.SQL(", ").join(...)`) for table and column names. Use `%s` placeholders for values. No f-strings with anything that could be user input. Everything passed to `.format()` must be a `Composable`, not a plain string.
 - **Read big tables with named (server-side) cursors** and `fetchmany(BATCH_SIZE)`, looping until an empty list comes back.
-- **Check functions return data, they do not print.** Printing and exit codes belong in the runner script.
+- **Check functions return their findings as data.** They also print a human-readable report as they go, but callers must never parse that text: tests and exit codes use the returned values. `run_all_checks()` bundles all four results into one dict.
 - **Compare by key, never by row position.** Without `ORDER BY`, row order is not guaranteed and differs between the two databases.
 - **One transaction per logical job.** Connect with `with psycopg.connect(...)`: leaving the block commits, an exception rolls back. Do not catch errors inside helpers (a failed statement aborts the transaction). Catch `psycopg.OperationalError` once, in `main()`.
 - **Order matters for foreign keys:** INSERT parent first (`movies`, then `ratings`); DELETE child first; `TRUNCATE ratings, movies` in one statement, any order.
@@ -127,7 +127,7 @@ Gurdas is building this to learn, and will present it. Explain concepts in simpl
 
 ## Planned next steps
 
-1. pytest test: run `break_target.py`, run the checks, assert findings equal `answer_key.json`.
+1. ~~pytest test: run `error_migrate.py`, run the checks, assert findings equal `answer_key.json`.~~ **Done** — `tests/` covers missing keys, extra keys, changed rows, null counts, row counts and the clean case.
 2. `scripts/check.py`: one runner that runs all checks, prints a short report and exits non-zero on any mismatch; also test the clean case.
 3. README: problem, run order, "why one check isn't enough" using real results, known limits (keys held in memory, identical column types assumed).
 4. Optional drill-down: for changed keys, show which column differs.
