@@ -80,6 +80,25 @@ exit code:
 `2` is deliberately not `0`: "nothing was verified" must never look like
 "everything matched" to a scheduled job.
 
+## Configuration
+
+Credentials are required; everything else has a default that points at the
+local containers. Values are read from the environment, falling back to `.env`,
+so the same code runs locally and against RDS without being edited.
+
+| Variable                            | Default     | Purpose                      |
+| ----------------------------------- | ----------- | ---------------------------- |
+| `DB_USER`, `DB_PASSWORD`            | *required*  | credentials for both sides   |
+| `SOURCE_HOST`, `SOURCE_PORT`, `SOURCE_DB` | `localhost`, `5433`, `source` | the old system |
+| `TARGET_HOST`, `TARGET_PORT`, `TARGET_DB` | `localhost`, `5434`, `target` | the new system |
+| `BATCH_SIZE`                        | `10000`     | rows fetched per round trip  |
+| `DB_CONNECT_TIMEOUT`                | `10`        | seconds before giving up     |
+
+Credentials are read when first needed rather than at import, so importing the
+package never fails for want of configuration — it fails when it tries to
+connect, with a message naming the missing variable. `reconciler.report`
+reports that as exit code `2`, "could not check".
+
 ## Why one check isn't enough
 
 The checker runs four checks, because each one is blind to something another
