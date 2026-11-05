@@ -123,6 +123,29 @@ The reverse holds too. `ratings` keeps every key it should have apart from the
 5 deleted ones, yet 40 of its rows hold wrong values — invisible to both the
 count and the key check, and caught only by the fingerprints.
 
+### Which column changed
+
+The fingerprint check hashes the whole row, so on its own it can only say that
+a row differs. `check.py` follows up by reading the flagged rows back and
+comparing them column by column, grouped so the report stays short:
+
+```
+=== Which columns changed ===
+  movies: runtime_minutes (20 rows)
+      tt0014693  runtime_minutes: 60 -> None
+      tt0023683  runtime_minutes: 65 -> None
+      ... and 18 more
+  ratings: average_rating (20 rows)
+      tt0047946  average_rating: 5.4 -> 6.4
+      ... and 19 more
+  ratings: num_votes (20 rows)
+      tt0028601  num_votes: 184 -> 183
+      ... and 19 more
+```
+
+This is the difference between knowing 40 rating rows are wrong and knowing
+that 20 of them have an inflated `average_rating` while 20 others lost a vote.
+
 ### Why `start_year` is in that list
 
 Nothing touched `start_year`. It appears because NULL counts are totals over
