@@ -128,7 +128,7 @@ Gurdas is building this to learn, and will present it. Explain concepts in simpl
 ## Planned next steps
 
 1. ~~pytest test: run `error_migrate.py`, run the checks, assert findings equal `answer_key.json`.~~ **Done** — `tests/` covers missing keys, extra keys, changed rows, null counts, row counts and the clean case.
-2. `scripts/check.py`: one runner that runs all checks, prints a short report and exits non-zero on any mismatch; also test the clean case.
-3. README: problem, run order, "why one check isn't enough" using real results, known limits (keys held in memory, identical column types assumed).
-4. Optional drill-down: for changed keys, show which column differs.
+2. ~~`scripts/check.py`: one runner that runs all checks, prints a short report and exits non-zero on any mismatch; also test the clean case.~~ **Done** — exit codes 0 clean / 1 damage found / 2 could not check.
+3. ~~README: problem, run order, "why one check isn't enough" using real results, known limits (keys held in memory, identical column types assumed).~~ **Done**
+4. ~~Optional drill-down: for changed keys, show which column differs.~~ **Done** — `explain_changed_rows()` in checks.py, printed by `scripts/check.py`.
 5. AWS stage: run the checker as a Lambda against RDS, results in CloudWatch.
