@@ -1,8 +1,8 @@
-iniconfig==2.3.1
-packaging==26.3
-pluggy==1.7.0
-psycopg==3.3.6
-psycopg-binary==3.3.6
-Pygments==2.21.0
-pytest==9.1.1
+# Runtime dependencies only: what the checker needs to run, including in a
+# Lambda. Test tooling lives in requirements-dev.txt so a deployment package
+# does not ship it.
+psycopg[binary]==3.3.6
+
+# Local convenience for reading .env. reconciler.db imports it defensively, so
+# a deployment that sets real environment variables can leave it out.
 python-dotenv==1.2.4

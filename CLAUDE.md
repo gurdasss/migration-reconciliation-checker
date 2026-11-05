@@ -23,7 +23,7 @@ A tool that answers one question: after copying data from an old database (`sour
 cp .env.example .env            # then edit .env and set DB_USER / DB_PASSWORD
 python3.12 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 pip install -e .                # makes `import reconciler` work (package lives in src/)
 ./scripts/db_setup.sh           # starts both DBs, downloads IMDb data, loads source, creates empty target tables
 ```

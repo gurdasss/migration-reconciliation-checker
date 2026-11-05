@@ -43,7 +43,7 @@ inserted, 20 blanked runtimes, 20 altered ratings, 20 altered vote counts.
    ```bash
    python3.12 -m venv .venv
    source .venv/bin/activate
-   pip install -r requirements.txt
+   pip install -r requirements-dev.txt
    pip install -e .
    ```
 4. Run the setup script:

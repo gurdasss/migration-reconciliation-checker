@@ -1,0 +1,4 @@
+# Everything needed to work on the project and run the tests.
+-r requirements.txt
+
+pytest==9.1.1
