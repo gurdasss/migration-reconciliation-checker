@@ -13,3 +13,17 @@ def test_missing_keys_match_answer_key(conns, answer_key):
     actual = {table: findings[table]["missing"] for table in expected}
 
     assert actual == expected
+
+
+def test_extra_keys_match_answer_key(conns, answer_key):
+    src_conn, tgt_conn = conns
+    findings = check_keys(src_conn, tgt_conn)
+
+    # Only movies gained fake rows; ratings should have no extras at all.
+    expected = {
+        "movies": set(answer_key["insert_fake_movies"]),
+        "ratings": set(),
+    }
+    actual = {table: findings[table]["extra"] for table in expected}
+
+    assert actual == expected
