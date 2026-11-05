@@ -199,6 +199,60 @@ def check_changed(src_conn, tgt_conn):
     return findings
 
 
+def _read_rows(conn, table, key, columns, keys):
+    """Fetch full rows for the given keys as {key: {column: value}}.
+
+    Keys are sent in batches so a long list of changed rows cannot build one
+    enormous statement.
+    """
+    query = sql.SQL("SELECT {} FROM {} WHERE {} = ANY(%s)").format(
+        sql.SQL(", ").join(sql.Identifier(c) for c in columns),
+        sql.Identifier(table),
+        sql.Identifier(key),
+    )
+
+    keys = list(keys)
+    rows = {}
+    with conn.cursor() as cur:
+        for start in range(0, len(keys), BATCH_SIZE):
+            cur.execute(query, (keys[start : start + BATCH_SIZE],))
+            for row in cur.fetchall():
+                values = dict(zip(columns, row))
+                rows[values[key]] = values
+
+    return rows
+
+
+def explain_changed_rows(src_conn, tgt_conn, table, keys):
+    """Say which columns differ, for rows the fingerprint check flagged.
+
+    The fingerprint check hashes the whole row, so it reports that a row
+    changed but not what changed in it. This reads both rows back and compares
+    column by column.
+
+    Returns {key: {column: {"source": value, "target": value}}}, holding only
+    the columns that actually differ. Unlike the checks, this prints nothing at
+    all: how much of a drill-down to show is the caller's decision.
+    """
+    key = TABLES[table]["key"]
+    columns = TABLES[table]["columns"]
+
+    src_rows = _read_rows(src_conn, table, key, columns, keys)
+    tgt_rows = _read_rows(tgt_conn, table, key, columns, keys)
+
+    differences = {}
+    for k in src_rows.keys() & tgt_rows.keys():
+        changed_columns = {
+            column: {"source": src_rows[k][column], "target": tgt_rows[k][column]}
+            for column in columns
+            if src_rows[k][column] != tgt_rows[k][column]
+        }
+        if changed_columns:
+            differences[k] = changed_columns
+
+    return differences
+
+
 def run_all_checks(src_conn, tgt_conn):
     """Run every check and return all findings in one dict."""
     return {
