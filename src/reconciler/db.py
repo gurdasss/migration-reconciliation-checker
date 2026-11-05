@@ -23,6 +23,10 @@ try:  # python-dotenv is a local convenience, not a runtime requirement
 except ModuleNotFoundError:  # pragma: no cover - only in a slim deployment
     load_dotenv = None
 
+class MissingCredentials(RuntimeError):
+    """DB_USER or DB_PASSWORD was not set."""
+
+
 _env_file_loaded = False
 
 
@@ -50,7 +54,7 @@ def get_credentials():
             for name, value in (("DB_USER", user), ("DB_PASSWORD", password))
             if not value
         ]
-        raise RuntimeError(
+        raise MissingCredentials(
             f"{' and '.join(missing)} not set. Locally, put them in .env; "
             "in AWS, set them on the function's environment."
         )
