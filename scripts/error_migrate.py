@@ -9,11 +9,9 @@ from pathlib import Path
 import psycopg
 
 # Adjust these imports to match your package layout.
-from reconciler.db import get_params
+from reconciler.db import target_params
 from reconciler.migrate import run_clean_migration
 
-TARGET_PORT = 5434
-TARGET_DB = "target"
 ANSWER_KEY_PATH = Path("answer_key.json")
 
 # Rows are chosen by hashing the key, so the same data always gives the same
@@ -117,7 +115,7 @@ def main() -> None:
         # 2. Corrupt target. All faults share one transaction: if any of them
         #    fails, everything rolls back and target stays clean.
         answer_key: dict[str, list[str]] = {}
-        with psycopg.connect(**get_params(TARGET_PORT, TARGET_DB)) as tar_conn:
+        with psycopg.connect(**target_params()) as tar_conn:
             with tar_conn.cursor() as tar_cur:
                 for name, (query, n) in FAULTS.items():
                     answer_key[name] = inject_fault(tar_cur, name, query, n)

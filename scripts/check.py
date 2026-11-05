@@ -18,8 +18,7 @@ import sys
 from psycopg import OperationalError, connect
 
 from reconciler.checks import explain_changed_rows, run_all_checks
-from reconciler.constants import SOURCE_DB, SOURCE_PORT, TARGET_DB, TARGET_PORT
-from reconciler.db import get_params
+from reconciler.db import source_params, target_params
 from reconciler.tables import TABLES
 
 EXIT_OK = 0
@@ -115,8 +114,8 @@ def report_changed_columns(src_conn, tgt_conn, findings) -> None:
 def main() -> int:
     """Return the exit code rather than calling sys.exit, so tests can call it."""
     try:
-        with connect(**get_params(SOURCE_PORT, SOURCE_DB)) as src_conn, connect(
-            **get_params(TARGET_PORT, TARGET_DB)
+        with connect(**source_params()) as src_conn, connect(
+            **target_params()
         ) as tgt_conn:
             findings = run_all_checks(src_conn, tgt_conn)
             # Inside the with-block: the drill-down needs the connections, and

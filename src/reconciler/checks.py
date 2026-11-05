@@ -1,13 +1,7 @@
 from psycopg import Connection, OperationalError, connect, sql
 
-from reconciler.constants import (
-    BATCH_SIZE,
-    SOURCE_DB,
-    SOURCE_PORT,
-    TARGET_DB,
-    TARGET_PORT,
-)
-from reconciler.db import get_params
+from reconciler.constants import BATCH_SIZE
+from reconciler.db import source_params, target_params
 from reconciler.tables import TABLES
 
 
@@ -265,8 +259,8 @@ def run_all_checks(src_conn, tgt_conn):
 
 def main():
     try:
-        with connect(**get_params(SOURCE_PORT, SOURCE_DB)) as src_conn, connect(
-            **get_params(TARGET_PORT, TARGET_DB)
+        with connect(**source_params()) as src_conn, connect(
+            **target_params()
         ) as tgt_conn:
             run_all_checks(src_conn, tgt_conn)
 

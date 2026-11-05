@@ -1,13 +1,7 @@
 import psycopg
 
-from reconciler.constants import (
-    BATCH_SIZE,
-    SOURCE_DB,
-    SOURCE_PORT,
-    TARGET_DB,
-    TARGET_PORT,
-)
-from reconciler.db import get_params
+from reconciler.constants import BATCH_SIZE
+from reconciler.db import source_params, target_params
 from reconciler.tables import TABLES
 
 
@@ -35,8 +29,8 @@ def _copy_table(src_conn, tgt_cur, table, columns):
 
 
 def run_clean_migration():
-    db_src_params = get_params(SOURCE_PORT, SOURCE_DB)
-    db_tar_params = get_params(TARGET_PORT, TARGET_DB)
+    db_src_params = source_params()
+    db_tar_params = target_params()
 
     try:
         with psycopg.connect(**db_src_params) as src_conn, psycopg.connect(

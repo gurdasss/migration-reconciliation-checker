@@ -7,8 +7,8 @@ from pathlib import Path
 import psycopg
 import pytest
 
-from reconciler.constants import SOURCE_DB, SOURCE_PORT, TARGET_DB, TARGET_PORT
-from reconciler.db import get_params
+from reconciler.constants import SOURCE_DB, SOURCE_HOST, TARGET_DB, TARGET_HOST
+from reconciler.db import source_params, target_params
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ERROR_MIGRATE = PROJECT_ROOT / "scripts" / "error_migrate.py"
@@ -22,13 +22,17 @@ def databases_available():
     Without this, every test fails with a raw connection error instead. Change
     pytest.skip to pytest.fail if you would rather a CI run go red.
     """
-    for port, dbname in ((SOURCE_PORT, SOURCE_DB), (TARGET_PORT, TARGET_DB)):
+    databases = (
+        (SOURCE_DB, SOURCE_HOST, source_params),
+        (TARGET_DB, TARGET_HOST, target_params),
+    )
+    for dbname, host, params in databases:
         try:
-            with psycopg.connect(**get_params(port, dbname), connect_timeout=5):
+            with psycopg.connect(**params()):
                 pass
         except psycopg.OperationalError as e:
             pytest.skip(
-                f"cannot reach {dbname} on port {port} "
+                f"cannot reach {dbname} on {host} "
                 f"(try: docker compose up -d) -- {e}",
             )
 
@@ -69,7 +73,7 @@ def answer_key(databases_available):
 @pytest.fixture(scope="session")
 def conns(answer_key):
     """Open one connection to each database for the whole test session."""
-    with psycopg.connect(**get_params(SOURCE_PORT, SOURCE_DB)) as src_conn, (
-        psycopg.connect(**get_params(TARGET_PORT, TARGET_DB))
+    with psycopg.connect(**source_params()) as src_conn, (
+        psycopg.connect(**target_params())
     ) as tgt_conn:
         yield src_conn, tgt_conn
