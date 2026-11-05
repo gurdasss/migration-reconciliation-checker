@@ -17,7 +17,7 @@ import sys
 
 from psycopg import OperationalError, connect
 
-from reconciler.checks import run_all_checks
+from reconciler.checks import explain_changed_rows, run_all_checks
 from reconciler.constants import SOURCE_DB, SOURCE_PORT, TARGET_DB, TARGET_PORT
 from reconciler.db import get_params
 from reconciler.tables import TABLES
@@ -73,6 +73,45 @@ def summarise(findings: dict) -> list[str]:
     return problems
 
 
+EXAMPLES_SHOWN = 3
+
+
+def report_changed_columns(src_conn, tgt_conn, findings) -> None:
+    """Print which columns changed, for the rows flagged as changed.
+
+    The fingerprint check can only say that a row differs. This turns
+    "20 rows have changed values" into a named column and a before/after
+    pair, which is what someone fixing the migration actually needs.
+    """
+    if not any(findings["changed"][table] for table in TABLES):
+        return
+
+    print("\n=== Which columns changed ===")
+    for table in TABLES:
+        keys = findings["changed"][table]
+        if not keys:
+            continue
+
+        differences = explain_changed_rows(src_conn, tgt_conn, table, keys)
+
+        # Group by the set of columns that changed, so a report over many
+        # rows stays short when the same column changed in all of them.
+        by_columns: dict[tuple, list] = {}
+        for key in differences:
+            by_columns.setdefault(tuple(sorted(differences[key])), []).append(key)
+
+        for columns, affected in sorted(by_columns.items()):
+            print(f"  {table}: {', '.join(columns)} ({len(affected)} rows)")
+            for key in sorted(affected)[:EXAMPLES_SHOWN]:
+                for column, values in sorted(differences[key].items()):
+                    print(
+                        f"      {key}  {column}: "
+                        f"{values['source']} -> {values['target']}"
+                    )
+            if len(affected) > EXAMPLES_SHOWN:
+                print(f"      ... and {len(affected) - EXAMPLES_SHOWN} more")
+
+
 def main() -> int:
     """Return the exit code rather than calling sys.exit, so tests can call it."""
     try:
@@ -80,6 +119,9 @@ def main() -> int:
             **get_params(TARGET_PORT, TARGET_DB)
         ) as tgt_conn:
             findings = run_all_checks(src_conn, tgt_conn)
+            # Inside the with-block: the drill-down needs the connections, and
+            # they are closed as soon as the block is left.
+            report_changed_columns(src_conn, tgt_conn, findings)
     except OperationalError as e:
         print(f"\nCould not run the checks: {e}", file=sys.stderr)
         print(
